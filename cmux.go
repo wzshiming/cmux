@@ -1,4 +1,4 @@
-package shunt
+package cmux
 
 import (
 	"encoding/binary"
@@ -20,10 +20,16 @@ type Handler interface {
 	ServeConn(conn net.Conn)
 }
 
-// Mux is an Applicative protocol multiplexer
+type HandlerFunc func(conn net.Conn)
+
+func (h HandlerFunc) ServeConn(conn net.Conn) {
+	h(conn)
+}
+
+// CMux is an Applicative protocol multiplexer
 // It matches the prefix of each incoming reader against a list of registered patterns
 // and calls the handler for the pattern that most closely matches the Handler.
-type Mux struct {
+type CMux struct {
 	trie         *trie.Trie
 	prefixLength int
 	size         uint32
@@ -31,9 +37,9 @@ type Mux struct {
 	notFound     Handler
 }
 
-// NewProtoMux create a new Mux.
-func NewMux() *Mux {
-	p := &Mux{
+// NewCMux create a new CMux.
+func NewCMux() *CMux {
+	p := &CMux{
 		trie:     trie.NewTrie(),
 		handlers: map[uint32]Handler{},
 	}
@@ -41,13 +47,14 @@ func NewMux() *Mux {
 	return p
 }
 
-// NotFound replies to the handler with an Handler not found error.
-func (m *Mux) NotFound(handler Handler) error {
+// NotFound handle the handler that unmatched
+func (m *CMux) NotFound(handler Handler) error {
 	m.notFound = handler
 	return nil
 }
 
-func (m *Mux) HandleRegexp(pattern string, handler Handler) error {
+// HandleRegexp handle the handler that matches the regular
+func (m *CMux) HandleRegexp(pattern string, handler Handler) error {
 	if !strings.HasPrefix(pattern, "^") {
 		return fmt.Errorf("only prefix matching is supported, change to %q", "^"+pattern)
 	}
@@ -68,14 +75,15 @@ func (m *Mux) HandleRegexp(pattern string, handler Handler) error {
 	return nil
 }
 
-func (m *Mux) HandlePrefix(prefix string, handler Handler) error {
+// HandlePrefix handle the handler that matches the prefix
+func (m *CMux) HandlePrefix(prefix string, handler Handler) error {
 	buf := m.setHandler(handler)
 	m.handle(prefix, buf)
 	return nil
 }
 
 // Handler returns most matching handler and prefix bytes data to use for the given reader.
-func (m *Mux) Handler(r io.Reader) (handler Handler, prefix []byte, err error) {
+func (m *CMux) Handler(r io.Reader) (handler Handler, prefix []byte, err error) {
 	if m.prefixLength == 0 {
 		return nil, nil, ErrNotFound
 	}
@@ -115,14 +123,14 @@ func (m *Mux) Handler(r io.Reader) (handler Handler, prefix []byte, err error) {
 	return handler, prefix[:off], nil
 }
 
-func (m *Mux) handle(prefix string, buf []byte) {
+func (m *CMux) handle(prefix string, buf []byte) {
 	m.trie.Put([]byte(prefix), buf)
 	if m.prefixLength < len(prefix) {
 		m.prefixLength = len(prefix)
 	}
 }
 
-func (m *Mux) setHandler(hand Handler) []byte {
+func (m *CMux) setHandler(hand Handler) []byte {
 	k := atomic.AddUint32(&m.size, 1)
 	m.handlers[k] = hand
 	buf := make([]byte, 4)
@@ -130,13 +138,13 @@ func (m *Mux) setHandler(hand Handler) []byte {
 	return buf
 }
 
-func (m *Mux) getHandler(index []byte) (Handler, bool) {
+func (m *CMux) getHandler(index []byte) (Handler, bool) {
 	c, ok := m.handlers[binary.BigEndian.Uint32(index)]
 	return c, ok
 }
 
 // ServeConn dispatches the reader to the handler whose pattern most closely matches the reader.
-func (m *Mux) ServeConn(conn net.Conn) {
+func (m *CMux) ServeConn(conn net.Conn) {
 	connector, buf, err := m.Handler(conn)
 	if err != nil {
 		conn.Close()

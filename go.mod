@@ -1,4 +1,4 @@
-module github.com/wzshiming/shunt
+module github.com/wzshiming/cmux
 
 go 1.15
 

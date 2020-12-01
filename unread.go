@@ -1,4 +1,4 @@
-package shunt
+package cmux
 
 import (
 	"io"
