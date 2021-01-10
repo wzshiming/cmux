@@ -85,7 +85,10 @@ func (m *CMux) HandlePrefix(prefix string, handler Handler) error {
 // Handler returns most matching handler and prefix bytes data to use for the given reader.
 func (m *CMux) Handler(r io.Reader) (handler Handler, prefix []byte, err error) {
 	if m.prefixLength == 0 {
-		return nil, nil, ErrNotFound
+		if m.notFound == nil {
+			return nil, nil, ErrNotFound
+		}
+		return m.notFound, nil, nil
 	}
 	parent := m.trie.Mapping()
 	off := 0
