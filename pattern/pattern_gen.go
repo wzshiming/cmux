@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/wzshiming/crun"
 )
@@ -17,14 +18,27 @@ func main() {
 func Generate() []byte {
 	buf := bytes.NewBuffer(nil)
 	buf.WriteString("package pattern\n\n")
-	buf.WriteString("//go:generate go run pattern_gen.go\n\n")
+	buf.WriteString("//go:generate go run pattern_gen.go\n")
+	buf.WriteString("//go:generate go fmt .\n\n")
+
+	buf.WriteString("const (\n")
+	for _, pattern := range patterns {
+		key := pattern[0]
+
+		buf.WriteString("\t")
+		buf.WriteString(strings.ToUpper(key))
+		buf.WriteString(" = ")
+		buf.WriteString(strconv.Quote(key))
+		buf.WriteString("\n")
+	}
+	buf.WriteString(")\n\n")
 	buf.WriteString("var Pattern = map[string][]string{\n")
 	for _, pattern := range patterns {
 		key := pattern[0]
 		reg := crun.MustCompile(pattern[1])
 
 		buf.WriteString("\t")
-		buf.WriteString(strconv.Quote(key))
+		buf.WriteString(strings.ToUpper(key))
 		buf.WriteString(": {\n")
 		reg.Range(func(s string) bool {
 			buf.WriteString("\t\t")

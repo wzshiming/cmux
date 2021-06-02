@@ -1,24 +1,34 @@
 package pattern
 
 //go:generate go run pattern_gen.go
+//go:generate go fmt .
+
+const (
+	TLS    = "tls"
+	SOCKS4 = "socks4"
+	SOCKS5 = "socks5"
+	HTTP   = "http"
+	HTTP2  = "http2"
+	SSH    = "ssh"
+)
 
 var Pattern = map[string][]string{
-	"tls": {
+	TLS: {
 		"\x16\x03\x00",
 		"\x16\x03\x01",
 		"\x16\x03\x02",
 		"\x16\x03\x03",
 	},
-	"socks4": {
+	SOCKS4: {
 		"\x04\x01",
 		"\x04\x02",
 	},
-	"socks5": {
+	SOCKS5: {
 		"\x05\x01",
 		"\x05\x02",
 		"\x05\x03",
 	},
-	"http": {
+	HTTP: {
 		"GET ",
 		"HEAD ",
 		"POST ",
@@ -29,10 +39,10 @@ var Pattern = map[string][]string{
 		"OPTIONS ",
 		"TRACE ",
 	},
-	"http2": {
+	HTTP2: {
 		"PRI * HTTP/2.0",
 	},
-	"ssh": {
+	SSH: {
 		"SSH-",
 	},
 }
