@@ -35,20 +35,10 @@ func (m *MuxListener) Unmatched() (net.Listener, error) {
 	return ml, nil
 }
 
-// MatchRegexp returns the net.Listener that matches the regular
-func (m *MuxListener) MatchRegexp(pattern string) (net.Listener, error) {
-	ml := m.muxListener()
-	err := m.mux.HandleRegexp(pattern, ml)
-	if err != nil {
-		return nil, err
-	}
-	return ml, nil
-}
-
 // MatchPrefix returns the net.Listener that matches the prefix
-func (m *MuxListener) MatchPrefix(prefix string) (net.Listener, error) {
+func (m *MuxListener) MatchPrefix(prefixes ...string) (net.Listener, error) {
 	ml := m.muxListener()
-	err := m.mux.HandlePrefix(prefix, ml)
+	err := m.mux.HandlePrefix(ml, prefixes...)
 	if err != nil {
 		return nil, err
 	}

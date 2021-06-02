@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"strings"
 	"sync/atomic"
 
-	"github.com/wzshiming/crun"
 	"github.com/wzshiming/trie"
 )
 
@@ -53,32 +51,12 @@ func (m *CMux) NotFound(handler Handler) error {
 	return nil
 }
 
-// HandleRegexp handle the handler that matches the regular
-func (m *CMux) HandleRegexp(pattern string, handler Handler) error {
-	if !strings.HasPrefix(pattern, "^") {
-		return fmt.Errorf("only prefix matching is supported, change to %q", "^"+pattern)
-	}
-	r, err := crun.Compile(pattern)
-	if err != nil {
-		return err
-	}
-
-	if size := r.Size(); size > 1000 {
-		return fmt.Errorf("regular is too large: %d", size)
-	}
-
-	buf := m.setHandler(handler)
-	r.Range(func(prefix string) bool {
-		m.handle(prefix, buf)
-		return true
-	})
-	return nil
-}
-
 // HandlePrefix handle the handler that matches the prefix
-func (m *CMux) HandlePrefix(prefix string, handler Handler) error {
+func (m *CMux) HandlePrefix(handler Handler, prefixes ...string) error {
 	buf := m.setHandler(handler)
-	m.handle(prefix, buf)
+	for _, prefix := range prefixes {
+		m.handle(prefix, buf)
+	}
 	return nil
 }
 

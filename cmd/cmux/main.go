@@ -27,42 +27,32 @@ func main() {
 
 	wg := sync.WaitGroup{}
 
-	regs := map[string]string{
-		"tls":       pattern.TLS,
-		"socks4":    pattern.Socks4,
-		"socks5":    pattern.Socks5,
-		"http":      pattern.HTTP,
-		"http2":     pattern.HTTP2,
-		"ssh":       pattern.SSH,
-		"unmatched": "",
-	}
-	wg.Add(len(regs))
-	for key, reg := range regs {
-		var listener net.Listener
-		if reg == "" {
-			listener, err = mux.Unmatched()
+	handle := func(key string, listener net.Listener) {
+		defer wg.Done()
+		for {
+			conn, err := listener.Accept()
 			if err != nil {
-				log.Fatalln(key, err)
+				log.Println(key, err)
+				return
 			}
-		} else {
-			listener, err = mux.MatchRegexp(reg)
-			if err != nil {
-				log.Fatalln(key, err)
-			}
+			log.Println(key, conn.RemoteAddr())
+			conn.Close()
 		}
+	}
 
-		go func(key string, listener net.Listener) {
-			defer wg.Done()
-			for {
-				conn, err := listener.Accept()
-				if err != nil {
-					log.Println(key, err)
-					return
-				}
-				log.Println(key, conn.RemoteAddr())
-				conn.Close()
-			}
-		}(key, listener)
+	regs := pattern.Pattern
+	wg.Add(len(regs) + 1)
+	listener, err := mux.Unmatched()
+	if err != nil {
+		log.Fatalln("unmatched", err)
+	}
+	go handle("unmatched", listener)
+	for key, reg := range regs {
+		listener, err := mux.MatchPrefix(reg...)
+		if err != nil {
+			log.Fatalln(key, err)
+		}
+		go handle(key, listener)
 	}
 	wg.Wait()
 }
