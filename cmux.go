@@ -53,6 +53,9 @@ func (m *CMux) NotFound(handler Handler) error {
 
 // HandlePrefix handle the handler that matches the prefix
 func (m *CMux) HandlePrefix(handler Handler, prefixes ...string) error {
+	if len(prefixes) == 0 {
+		return nil
+	}
 	buf := m.setHandler(handler)
 	for _, prefix := range prefixes {
 		m.handle(prefix, buf)
