@@ -18,6 +18,7 @@ var Pattern = map[string][]string{
 		"\x16\x03\x01",
 		"\x16\x03\x02",
 		"\x16\x03\x03",
+		"\x16\x03\x04",
 	},
 	SOCKS4: {
 		"\x04\x01",
