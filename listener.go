@@ -64,36 +64,33 @@ func (m *MuxListener) muxListener() *muxListener {
 	}
 	return &muxListener{
 		addr: m.listener.Addr(),
-		mux:  m,
 		ch:   make(chan net.Conn),
 	}
 }
 
 type muxListener struct {
 	addr    net.Addr
-	mux     *MuxListener
 	ch      chan net.Conn
 	isClose uint32
 }
 
 func (l *muxListener) ServeConn(conn net.Conn) {
-	select {
-	case l.ch <- conn:
-	default:
+	if atomic.LoadUint32(&l.isClose) == 1 {
 		conn.Close()
+		return
 	}
+	l.ch <- conn
 }
 
 func (l *muxListener) Accept() (net.Conn, error) {
-	c, ok := <-l.ch
-	if !ok {
+	if atomic.LoadUint32(&l.isClose) == 1 {
 		return nil, ErrListenerClosed
 	}
-	return c, nil
+	return <-l.ch, nil
 }
 
 func (l *muxListener) Close() error {
-	close(l.ch)
+	atomic.StoreUint32(&l.isClose, 1)
 	return nil
 }
 

@@ -1,5 +1,5 @@
 module github.com/wzshiming/cmux
 
-go 1.15
+go 1.18
 
-require github.com/wzshiming/trie v0.0.1
+require github.com/wzshiming/trie v0.1.0
