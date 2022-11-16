@@ -53,27 +53,43 @@ func (m *CMux) HandlePrefix(handler Handler, prefixes ...string) error {
 }
 
 // Handler returns most matching handler and prefix bytes data to use for the given reader.
-func (m *CMux) Handler(r io.Reader) (Handler, []byte, error) {
+func (m *CMux) Handler(r io.Reader) (handler Handler, prefix []byte, err error) {
 	if m.trie.Size() == 0 {
 		if m.notFound == nil {
 			return nil, nil, ErrNotFound
 		}
 		return m.notFound, nil, nil
 	}
-	prefix := make([]byte, m.trie.Depth())
-	n, err := io.ReadFull(r, prefix)
-	if err != nil {
-		return nil, nil, err
+	parent := m.trie.Mapping()
+	off := 0
+	prefix = make([]byte, m.trie.Depth())
+	for {
+		i, err := r.Read(prefix[off:])
+		if err != nil {
+			return nil, nil, err
+		}
+		if i == 0 {
+			break
+		}
+
+		data, next, ok := parent.Get(prefix[off : off+i])
+		if ok && data != nil {
+			handler = data
+		}
+
+		off += i
+		if next == nil {
+			break
+		}
+		parent = next
 	}
-	prefix = prefix[:n]
-	handler, _, _ := m.trie.Get(prefix)
-	if handler != nil {
-		return handler, prefix, nil
+	if handler == nil {
+		if m.notFound == nil {
+			return nil, prefix[:off], ErrNotFound
+		}
+		handler = m.notFound
 	}
-	if m.notFound == nil {
-		return nil, prefix, ErrNotFound
-	}
-	return m.notFound, prefix, nil
+	return handler, prefix[:off], nil
 }
 
 // ServeConn dispatches the reader to the handler whose pattern most closely matches the reader.
