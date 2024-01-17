@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"sync/atomic"
+	"time"
 )
 
 var ErrListenerClosed = fmt.Errorf("listener closed")
@@ -15,6 +16,7 @@ type MuxListener struct {
 	mux        *CMux
 	isStart    uint32
 	ErrHandler func(err error) bool
+	ch         chan net.Conn
 }
 
 // NewMuxListener create a new MuxListener.
@@ -22,6 +24,7 @@ func NewMuxListener(listener net.Listener) *MuxListener {
 	return &MuxListener{
 		listener: listener,
 		mux:      NewCMux(),
+		ch:       make(chan net.Conn),
 	}
 }
 
@@ -54,7 +57,25 @@ func (m *MuxListener) run() {
 			}
 			return
 		}
-		m.mux.ServeConn(conn)
+		select {
+		case m.ch <- conn:
+		default:
+			go m.handleConn()
+			m.ch <- conn
+		}
+	}
+}
+
+func (m *MuxListener) handleConn() {
+	for {
+		select {
+		case conn, ok := <-m.ch:
+			if !ok {
+				return
+			}
+			m.mux.ServeConn(conn)
+		case <-time.After(time.Minute):
+		}
 	}
 }
 
