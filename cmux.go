@@ -1,15 +1,15 @@
 package cmux
 
 import (
-	"fmt"
 	"io"
 	"net"
+	"errors"
 
 	"github.com/wzshiming/trie"
 )
 
 var (
-	ErrNotFound = fmt.Errorf("error not found")
+	ErrNotFound = trie.ErrNotFound
 )
 
 type Handler interface {
@@ -54,42 +54,14 @@ func (m *CMux) HandlePrefix(handler Handler, prefixes ...string) error {
 
 // Handler returns most matching handler and prefix bytes data to use for the given reader.
 func (m *CMux) Handler(r io.Reader) (handler Handler, prefix []byte, err error) {
-	if m.trie.Size() == 0 {
-		if m.notFound == nil {
-			return nil, nil, ErrNotFound
+	handler, prefix, err = m.trie.MatchWithReader(r)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return m.notFound, prefix, nil
 		}
-		return m.notFound, nil, nil
+		return nil, prefix, err
 	}
-	parent := m.trie.Mapping()
-	off := 0
-	prefix = make([]byte, m.trie.Depth())
-	for {
-		i, err := r.Read(prefix[off:])
-		if err != nil {
-			return nil, nil, err
-		}
-		if i == 0 {
-			break
-		}
-
-		data, next, ok := parent.Get(prefix[off : off+i])
-		if ok && data != nil {
-			handler = data
-		}
-
-		off += i
-		if next == nil {
-			break
-		}
-		parent = next
-	}
-	if handler == nil {
-		if m.notFound == nil {
-			return nil, prefix[:off], ErrNotFound
-		}
-		handler = m.notFound
-	}
-	return handler, prefix[:off], nil
+	return handler, prefix, nil
 }
 
 // ServeConn dispatches the reader to the handler whose pattern most closely matches the reader.
