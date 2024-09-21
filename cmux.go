@@ -1,9 +1,9 @@
 package cmux
 
 import (
+	"errors"
 	"io"
 	"net"
-	"errors"
 
 	"github.com/wzshiming/trie"
 )
@@ -56,7 +56,7 @@ func (m *CMux) HandlePrefix(handler Handler, prefixes ...string) error {
 func (m *CMux) Handler(r io.Reader) (handler Handler, prefix []byte, err error) {
 	handler, prefix, err = m.trie.MatchWithReader(r)
 	if err != nil {
-		if errors.Is(err, ErrNotFound) {
+		if m.notFound != nil && errors.Is(err, ErrNotFound) {
 			return m.notFound, prefix, nil
 		}
 		return nil, prefix, err
