@@ -74,7 +74,8 @@ var patterns = [...][2]string{
 	// |version|command|                       ...                             |
 	// +-------+-------+-------------------------------------------------------+
 	{"socks4", "^\x04(\x01|\x02)"},
-	{"socks5", "^\x05(\x01|\x02|\x03)"},
+	// socks5: second byte is NMETHODS, matched for 1..9
+	{"socks5", "^\x05(\x01|\x02|\x03|\x04|\x05|\x06|\x07|\x08|\x09)"},
 
 	// http
 	// http.MethodGet
