@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"sync"
 
 	"github.com/wzshiming/trie"
 )
@@ -26,8 +27,16 @@ func (h HandlerFunc) ServeConn(conn net.Conn) {
 // It matches the prefix of each incoming reader against a list of registered patterns
 // and calls the handler for the pattern that most closely matches the Handler.
 type CMux struct {
+	mu       sync.Mutex
+	prefixes []prefixHandler
+	// trie is rebuilt on every registration and never mutated after publish.
 	trie     *trie.Trie[Handler]
 	notFound Handler
+}
+
+type prefixHandler struct {
+	prefix  string
+	handler Handler
 }
 
 // NewCMux create a new CMux.
@@ -40,24 +49,40 @@ func NewCMux() *CMux {
 
 // NotFound handle the handler that unmatched
 func (m *CMux) NotFound(handler Handler) error {
+	m.mu.Lock()
 	m.notFound = handler
+	m.mu.Unlock()
 	return nil
 }
 
 // HandlePrefix handle the handler that matches the prefix
 func (m *CMux) HandlePrefix(handler Handler, prefixes ...string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	for _, prefix := range prefixes {
-		m.trie.Put([]byte(prefix), handler)
+		// trie.Put ignores empty keys.
+		if prefix == "" {
+			continue
+		}
+		m.prefixes = append(m.prefixes, prefixHandler{prefix: prefix, handler: handler})
 	}
+	t := trie.NewTrie[Handler]()
+	for _, p := range m.prefixes {
+		t.Put([]byte(p.prefix), p.handler)
+	}
+	m.trie = t
 	return nil
 }
 
 // Handler returns most matching handler and prefix bytes data to use for the given reader.
 func (m *CMux) Handler(r io.Reader) (handler Handler, prefix []byte, err error) {
-	handler, prefix, err = m.trie.MatchWithReader(r)
+	m.mu.Lock()
+	t, notFound := m.trie, m.notFound
+	m.mu.Unlock()
+	handler, prefix, err = t.MatchWithReader(r)
 	if err != nil {
-		if m.notFound != nil && errors.Is(err, ErrNotFound) {
-			return m.notFound, prefix, nil
+		if notFound != nil && errors.Is(err, ErrNotFound) {
+			return notFound, prefix, nil
 		}
 		return nil, prefix, err
 	}
