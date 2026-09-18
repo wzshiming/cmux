@@ -3,11 +3,12 @@ package cmux
 import (
 	"fmt"
 	"net"
+	"sync"
 	"sync/atomic"
 	"time"
 )
 
-var ErrListenerClosed = fmt.Errorf("listener closed")
+var ErrListenerClosed = fmt.Errorf("listener closed: %w", net.ErrClosed)
 
 // MuxListener is a multiplexer for network connections
 type MuxListener struct {
@@ -17,6 +18,10 @@ type MuxListener struct {
 	isStart    uint32
 	ErrHandler func(err error) bool
 	ch         chan net.Conn
+
+	mu       sync.Mutex
+	children []*muxListener
+	exited   bool
 }
 
 // NewMuxListener create a new MuxListener.
@@ -49,6 +54,7 @@ func (m *MuxListener) MatchPrefix(prefixes ...string) (net.Listener, error) {
 }
 
 func (m *MuxListener) run() {
+	defer m.closeChildren()
 	for {
 		conn, err := m.listener.Accept()
 		if err != nil {
@@ -79,39 +85,73 @@ func (m *MuxListener) handleConn() {
 	}
 }
 
+func (m *MuxListener) closeChildren() {
+	m.mu.Lock()
+	m.exited = true
+	children := m.children
+	m.children = nil
+	m.mu.Unlock()
+	for _, ml := range children {
+		ml.Close()
+	}
+}
+
 func (m *MuxListener) muxListener() *muxListener {
+	ml := &muxListener{
+		addr: m.listener.Addr(),
+		ch:   make(chan net.Conn),
+		done: make(chan struct{}),
+	}
+	m.mu.Lock()
+	if m.exited {
+		ml.Close()
+	} else {
+		m.children = append(m.children, ml)
+	}
+	m.mu.Unlock()
 	if atomic.CompareAndSwapUint32(&m.isStart, 0, 1) {
 		go m.run()
 	}
-	return &muxListener{
-		addr: m.listener.Addr(),
-		ch:   make(chan net.Conn),
-	}
+	return ml
 }
 
 type muxListener struct {
-	addr    net.Addr
-	ch      chan net.Conn
-	isClose uint32
+	addr net.Addr
+	ch   chan net.Conn
+	done chan struct{}
+	once sync.Once
 }
 
 func (l *muxListener) ServeConn(conn net.Conn) {
-	if atomic.LoadUint32(&l.isClose) == 1 {
+	select {
+	case <-l.done:
 		conn.Close()
 		return
+	default:
 	}
-	l.ch <- conn
+	select {
+	case l.ch <- conn:
+	case <-l.done:
+		conn.Close()
+	}
 }
 
 func (l *muxListener) Accept() (net.Conn, error) {
-	if atomic.LoadUint32(&l.isClose) == 1 {
+	select {
+	case <-l.done:
+		return nil, ErrListenerClosed
+	default:
+	}
+	select {
+	case conn := <-l.ch:
+		return conn, nil
+	case <-l.done:
 		return nil, ErrListenerClosed
 	}
-	return <-l.ch, nil
 }
 
 func (l *muxListener) Close() error {
-	atomic.StoreUint32(&l.isClose, 1)
+	l.once.Do(func() { close(l.done) })
 	return nil
 }
 
