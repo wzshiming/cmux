@@ -67,17 +67,9 @@ func (u *unread) Read(p []byte) (n int, err error) {
 		return u.reader.Read(p)
 	}
 	n = copy(p, u.prefix)
-	if n <= len(u.prefix) {
-		u.prefix = u.prefix[n:]
-		if len(u.prefix) == 0 {
-			u.prefix = nil
-		}
-		return n, nil
+	u.prefix = u.prefix[n:]
+	if len(u.prefix) == 0 {
+		u.prefix = nil
 	}
-	a, err := u.reader.Read(p[n:])
-	if err == io.EOF {
-		err = nil
-	}
-	n += a
-	return n, err
+	return n, nil
 }
