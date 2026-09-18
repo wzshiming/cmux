@@ -1,9 +1,11 @@
 package cmux
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"sync/atomic"
+	"time"
 )
 
 var ErrListenerClosed = fmt.Errorf("listener closed")
@@ -45,16 +47,38 @@ func (m *MuxListener) MatchPrefix(prefixes ...string) (net.Listener, error) {
 }
 
 func (m *MuxListener) run() {
+	var delay time.Duration
 	for {
 		conn, err := m.listener.Accept()
 		if err != nil {
-			if m.ErrHandler != nil && m.ErrHandler(err) {
-				continue
+			if m.ErrHandler != nil {
+				if m.ErrHandler(err) {
+					continue
+				}
+				return
 			}
-			return
+			var ne net.Error
+			if !errors.As(err, &ne) || !ne.Temporary() {
+				return
+			}
+			delay = nextDelay(delay)
+			time.Sleep(delay)
+			continue
 		}
+		delay = 0
 		go m.mux.ServeConn(conn)
 	}
+}
+
+// nextDelay doubles the accept retry delay from 5ms up to 1s.
+func nextDelay(delay time.Duration) time.Duration {
+	if delay == 0 {
+		return 5 * time.Millisecond
+	}
+	if delay *= 2; delay > time.Second {
+		return time.Second
+	}
+	return delay
 }
 
 func (m *MuxListener) muxListener() *muxListener {
