@@ -43,6 +43,7 @@ func (m *MuxListener) MatchPrefix(prefixes ...string) (net.Listener, error) {
 	ml := m.muxListener()
 	err := m.mux.HandlePrefix(ml, prefixes...)
 	if err != nil {
+		ml.Close()
 		return nil, err
 	}
 	return ml, nil

@@ -10,6 +10,8 @@ import (
 
 var (
 	ErrNotFound = trie.ErrNotFound
+
+	errEmptyPrefix = errors.New("cmux: empty prefix")
 )
 
 type Handler interface {
@@ -46,6 +48,11 @@ func (m *CMux) NotFound(handler Handler) error {
 
 // HandlePrefix handle the handler that matches the prefix
 func (m *CMux) HandlePrefix(handler Handler, prefixes ...string) error {
+	for _, prefix := range prefixes {
+		if prefix == "" {
+			return errEmptyPrefix
+		}
+	}
 	for _, prefix := range prefixes {
 		m.trie.Put([]byte(prefix), handler)
 	}
