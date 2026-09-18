@@ -28,6 +28,12 @@ var Pattern = map[string][]string{
 		"\x05\x01",
 		"\x05\x02",
 		"\x05\x03",
+		"\x05\x04",
+		"\x05\x05",
+		"\x05\x06",
+		"\x05\a",
+		"\x05\b",
+		"\x05\t",
 	},
 	HTTP: {
 		"GET ",
