@@ -4,12 +4,13 @@ package pattern
 //go:generate go fmt .
 
 const (
-	TLS    = "tls"
-	SOCKS4 = "socks4"
-	SOCKS5 = "socks5"
-	HTTP   = "http"
-	HTTP2  = "http2"
-	SSH    = "ssh"
+	TLS        = "tls"
+	SOCKS4     = "socks4"
+	SOCKS5     = "socks5"
+	HTTP       = "http"
+	HTTP_PROXY = "http_proxy"
+	HTTP2      = "http2"
+	SSH        = "ssh"
 )
 
 var Pattern = map[string][]string{
@@ -45,6 +46,19 @@ var Pattern = map[string][]string{
 		"CONNECT ",
 		"OPTIONS ",
 		"TRACE ",
+		"QUERY ",
+	},
+	HTTP_PROXY: {
+		"CONNECT ",
+		"GET http://",
+		"HEAD http://",
+		"POST http://",
+		"PUT http://",
+		"PATCH http://",
+		"DELETE http://",
+		"OPTIONS http://",
+		"TRACE http://",
+		"QUERY http://",
 	},
 	HTTP2: {
 		"PRI * HTTP/2.0",
