@@ -46,6 +46,7 @@ var Pattern = map[string][]string{
 		"CONNECT ",
 		"OPTIONS ",
 		"TRACE ",
+		"QUERY ",
 	},
 	HTTP_PROXY: {
 		"CONNECT ",
@@ -57,6 +58,7 @@ var Pattern = map[string][]string{
 		"DELETE http://",
 		"OPTIONS http://",
 		"TRACE http://",
+		"QUERY http://",
 	},
 	HTTP2: {
 		"PRI * HTTP/2.0",
