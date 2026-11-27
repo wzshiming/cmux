@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"net"
+	"sort"
 	"sync"
 
 	"github.com/wzshiming/cmux"
@@ -47,7 +48,15 @@ func main() {
 		log.Fatalln("unmatched", err)
 	}
 	go handle("unmatched", listener)
-	for key, reg := range regs {
+	// Register in a stable order, so that http_proxy is registered after http
+	// and takes the prefixes they share.
+	keys := make([]string, 0, len(regs))
+	for key := range regs {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		reg := regs[key]
 		listener, err := mux.MatchPrefix(reg...)
 		if err != nil {
 			log.Fatalln(key, err)

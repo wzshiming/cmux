@@ -39,9 +39,34 @@ func TestPatternsDoNotOverlap(t *testing.T) {
 	}
 	for i, first := range all {
 		for _, second := range all[i+1:] {
+			if refines(first.key, second.key) || refines(second.key, first.key) {
+				continue
+			}
 			if strings.HasPrefix(first.prefix, second.prefix) || strings.HasPrefix(second.prefix, first.prefix) {
 				t.Errorf("%s %q overlaps %s %q", first.key, first.prefix, second.key, second.prefix)
 			}
+		}
+	}
+}
+
+// refines reports whether pattern key is a deliberate refinement of pattern base,
+// which is allowed to overlap it: the longest prefix wins, and for an identical
+// prefix the pattern registered last wins.
+func refines(key, base string) bool {
+	return key == HTTP_PROXY && base == HTTP
+}
+
+func TestHTTPProxyRefinesHTTP(t *testing.T) {
+	for _, prefix := range Pattern[HTTP_PROXY] {
+		found := false
+		for _, base := range Pattern[HTTP] {
+			if strings.HasPrefix(prefix, base) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Pattern[%s] %q does not extend any Pattern[%s] prefix", HTTP_PROXY, prefix, HTTP)
 		}
 	}
 }

@@ -88,6 +88,8 @@ var patterns = [...][2]string{
 	// http.MethodOptions
 	// http.MethodTrace
 	{"http", "^(GET|HEAD|POST|PUT|PATCH|DELETE|CONNECT|OPTIONS|TRACE) "},
+	// http proxy: CONNECT, or a request with an absolute URL of http
+	{"http_proxy", "^(CONNECT |(GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS|TRACE) http://)"},
 	{"http2", "^PRI \\* HTTP/2\\.0"},
 
 	{"ssh", "^SSH-"},
